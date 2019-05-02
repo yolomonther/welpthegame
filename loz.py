@@ -15,7 +15,11 @@ move_speed = 5
 tex_right = 1
 tex_left = 0
 
-bullet_speed = 2
+health = 6
+
+bullet_speed = 5
+
+boomboom = 60
 
 class Room:
 
@@ -71,10 +75,11 @@ def room2_setup():
     for y in (0, screen_height - sprite_size):
             # Loop for each box going across
         for x in range(0, screen_width, sprite_size):
-            wall = arcade.Sprite("images/boxCrate_double.png", sprite_scale)
-            wall.left = x
-            wall.bottom = y
-            room.wall_list.append(wall)
+            if (x != sprite_size * 7 and x != sprite_size * 8) or y == 0:
+                wall = arcade.Sprite("images/boxCrate_double.png", sprite_scale)
+                wall.left = x
+                wall.bottom = y
+                room.wall_list.append(wall)
 
     for x in (0, screen_width - sprite_size):
         # Loop for each box going across
@@ -127,6 +132,31 @@ def room3_setup():
 
     return room
 
+def room4_setup():
+
+    room = Room()
+
+    room.wall_list = arcade.SpriteList()
+
+    for x in (0, screen_width - sprite_size):
+        for y in range(0, screen_height, sprite_size):
+            wall = arcade.Sprite("images/boxCrate_double.png", sprite_scale)
+            wall.left = x
+            wall.bottom = y
+            room.wall_list.append(wall)
+
+    for y in (0, screen_height - sprite_size):
+        for x in range(0, screen_width, sprite_size):
+            if (x != sprite_size * 7 and x != sprite_size * 8) or y != 0:
+                wall = arcade.Sprite("images/boxCrate_double.png", sprite_scale)
+                wall.left = x
+                wall.bottom = y
+                room.wall_list.append(wall)
+
+    room.background = arcade.load_texture("images/background_2.jpg")
+
+    return room
+
 class Player(arcade.Sprite):
 
     def __init__(self):
@@ -153,6 +183,32 @@ class Player(arcade.Sprite):
         if self.change_x > 0:
             self.set_texture(tex_right)
 
+
+
+
+
+class Explosion(arcade.Sprite):
+    """ This class creates an explosion animation """
+
+    # Static variable that holds all the explosion textures
+    explosion_textures = []
+
+    def __init__(self, texture_list):
+        super().__init__("images/explosion/explosion0000.png")
+
+        # Start at the first frame
+        self.current_texture = 0
+        self.textures = texture_list
+
+    def update(self):
+
+        # Update to the next frame of the animation. If we are at the end
+        # of our frames, then delete this sprite.
+        self.current_texture += 1
+        if self.current_texture < len(self.textures):
+            self.set_texture(self.current_texture)
+        else:
+            self.kill()
 
 
 class MyGame(arcade.Window):
@@ -188,6 +244,19 @@ class MyGame(arcade.Window):
         self.up_pressed = False
         self.down_pressed = False
 
+        # Pre-load the animation frames. We don't do this in the __init__
+        # of the explosion sprite because it
+        # takes too long and would cause the game to pause.
+        self.explosion_texture_list = []
+
+        for i in range(boomboom):
+            # Files from http://www.explosiongenerator.com are numbered sequentially.
+            # This code loads all of the explosion0000.png to explosion0270.png files
+            # that are part of this explosion.
+            texture_name = f"images/explosion/explosion{i:04d}.png"
+
+            self.explosion_texture_list.append(arcade.load_texture(texture_name))
+
     def setup(self):
         """ Set up the game and initialize the variables. """
         # Set up the player
@@ -198,6 +267,7 @@ class MyGame(arcade.Window):
         self.player_list.append(self.player_sprite)
         self.enemy_list = arcade.SpriteList()
         self.bullet_list = arcade.SpriteList()
+        self.explosions_list = arcade.SpriteList()
 
         enemy = arcade.Sprite("images/enemy.png", sprite_scale)
         enemy.center_x = 120
@@ -225,11 +295,15 @@ class MyGame(arcade.Window):
         room = room3_setup()
         self.rooms.append(room)
 
+        room = room4_setup()
+        self.rooms.append(room)
+
         # Our starting room number
         self.current_room = 0
 
         # Create a physics engine for this room
         self.physics_engine = arcade.PhysicsEngineSimple(self.player_sprite, self.rooms[self.current_room].wall_list)
+
 
     def on_draw(self):
         """
@@ -248,11 +322,13 @@ class MyGame(arcade.Window):
 
         # If you have coins or monsters, then copy and modify the line
         # above for each list.
-        if self.current_room != 0 and self.current_room % 2 == 1:
+        if self.current_room != 0 and self.current_room == 1:
             self.enemy_list.draw()
             self.bullet_list.draw()
 
         self.player_list.draw()
+        self.explosions_list.draw()
+
 
     def on_key_press(self, key, modifiers):
         """Called whenever a key is pressed. """
@@ -279,6 +355,7 @@ class MyGame(arcade.Window):
             self.right_pressed = False
 
     def update(self, delta_time):
+        global health
         """ Movement and game logic """
 
         self.player_sprite.change_x = 0
@@ -320,14 +397,23 @@ class MyGame(arcade.Window):
             self.physics_engine = arcade.PhysicsEngineSimple(self.player_sprite,
                                                              self.rooms[self.current_room].wall_list)
             self.player_sprite.center_y = screen_height
-
+        elif self.player_sprite.center_y > screen_height and self.current_room == 1:
+            self.current_room = 3
+            self.physics_engine = arcade.PhysicsEngineSimple(self.player_sprite,
+                                                             self.rooms[self.current_room].wall_list)
+            self.player_sprite.center_y = 0
+        elif self.player_sprite.center_y < 0 and self.current_room == 3:
+            self.current_room = 1
+            self.physics_engine = arcade.PhysicsEngineSimple(self.player_sprite,
+                                                             self.rooms[self.current_room].wall_list)
+            self.player_sprite.center_y = screen_height
         self.frame_count += 1
 
         for enemy in self.enemy_list:
             if self.current_room != 0 and self.current_room % 2 == 1:
                 # Get the destination location for the bullet
-                dest_x = enemy.center_x
-                dest_y = enemy.center_y
+                dest_x = self.player_sprite.center_x
+                dest_y = self.player_sprite.center_y
 
                 # Do math to calculate how to get the bullet to the destination.
                 # Calculation the angle in radians between the start points
@@ -339,8 +425,8 @@ class MyGame(arcade.Window):
                 # Set the enemy to face the player.
                 enemy.angle = math.degrees(angle) - 90
 
-                if self.frame_count % 60 == 0:
-                    bullet = arcade.Sprite("images/laserBlue01.png")
+                if self.frame_count % 180 == 0:
+                    bullet = arcade.Sprite("images/laserBlue01.png", sprite_scale)
                     bullet.center_x = enemy.center_x
                     bullet.center_y = enemy.center_y
 
@@ -356,10 +442,29 @@ class MyGame(arcade.Window):
 
             # Get rid of the bullet when it flies off-screen
             for bullet in self.bullet_list:
+                hit_list = arcade.check_for_collision_with_list(self.player_sprite, self.bullet_list)
                 if bullet.top < 0:
                     bullet.kill()
+                elif len(arcade.check_for_collision_with_list(bullet, self.rooms[self.current_room].wall_list)):
+                    bullet.kill()
+                elif len(hit_list) > 0:
+                    health -= 1
+                    explosion = Explosion(self.explosion_texture_list)
+                    explosion.center_x = hit_list[0].center_x
+                    explosion.center_y = hit_list[0].center_y
+                    self.explosions_list.append(explosion)
+                    bullet.kill()
+
 
             self.bullet_list.update()
+            self.explosions_list.update()
+
+
+
+
+        if health == 0:
+            self.player_sprite.kill()
+            print("You died")
 
 
 def main():
