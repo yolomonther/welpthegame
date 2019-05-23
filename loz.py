@@ -10,7 +10,7 @@ screen_width = sprite_size * 18
 screen_height = sprite_size * 10
 screen_title = "Temporary Title"
 
-move_speed = 5
+move_speed = 10
 
 tex_right = 1
 tex_left = 0
@@ -32,7 +32,7 @@ class Room:
 
 
 
-def room1_setup():
+def startroom_setup():
 
     room = Room()
 
@@ -41,7 +41,7 @@ def room1_setup():
     for y in (0, screen_height - sprite_size):
             # Loop for each box going across
         for x in range(0, screen_width, sprite_size):
-            if (x != sprite_size * 3 and x != sprite_size * 4) or y == 0:
+            if (x != sprite_size * 3 and x != sprite_size * 4 and x != sprite_size * 10 and x != sprite_size * 11) or y == 0:
                 wall = arcade.Sprite("images/boxCrate_double.png", sprite_scale)
                 wall.left = x
                 wall.bottom = y
@@ -62,11 +62,11 @@ def room1_setup():
     wall.bottom = 5 * sprite_size
     room.wall_list.append(wall)
 
-    room.background = arcade.load_texture("images/background.jpg")
+    room.background = arcade.load_texture("images/background_2.jpg")
 
     return room
 
-def room2_setup():
+def outside1_setup():
 
     room = Room()
 
@@ -102,7 +102,7 @@ def room2_setup():
 
     return room
 
-def room3_setup():
+def startcave_setup():
 
     room = Room()
 
@@ -132,7 +132,7 @@ def room3_setup():
 
     return room
 
-def room4_setup():
+def outside2_setup():
 
     room = Room()
 
@@ -140,14 +140,41 @@ def room4_setup():
 
     for x in (0, screen_width - sprite_size):
         for y in range(0, screen_height, sprite_size):
-            wall = arcade.Sprite("images/boxCrate_double.png", sprite_scale)
-            wall.left = x
-            wall.bottom = y
-            room.wall_list.append(wall)
+            if (y != sprite_size * 4 and y != sprite_size * 5) or x != 0:
+                wall = arcade.Sprite("images/boxCrate_double.png", sprite_scale)
+                wall.left = x
+                wall.bottom = y
+                room.wall_list.append(wall)
 
     for y in (0, screen_height - sprite_size):
         for x in range(0, screen_width, sprite_size):
             if (x != sprite_size * 7 and x != sprite_size * 8) or y != 0:
+                wall = arcade.Sprite("images/boxCrate_double.png", sprite_scale)
+                wall.left = x
+                wall.bottom = y
+                room.wall_list.append(wall)
+
+    room.background = arcade.load_texture("images/background_2.jpg")
+
+    return room
+
+def outside3_setup():
+
+    room = Room()
+
+    room.wall_list = arcade.SpriteList()
+
+    for x in (0, screen_width - sprite_size):
+        for y in range(0, screen_height, sprite_size):
+            if (y != sprite_size * 4 and y != sprite_size * 5):
+                wall = arcade.Sprite("images/boxCrate_double.png", sprite_scale)
+                wall.left = x
+                wall.bottom = y
+                room.wall_list.append(wall)
+
+    for y in (0, screen_height - sprite_size):
+        for x in range(0, screen_width, sprite_size):
+            if (x != sprite_size * 10 and x != sprite_size * 11) or y != 0:
                 wall = arcade.Sprite("images/boxCrate_double.png", sprite_scale)
                 wall.left = x
                 wall.bottom = y
@@ -286,16 +313,19 @@ class MyGame(arcade.Window):
         self.rooms = []
 
         # Create the rooms. Extend the pattern for each room.
-        room = room1_setup()
+        room = startroom_setup()
         self.rooms.append(room)
 
-        room = room2_setup()
+        room = outside1_setup()
         self.rooms.append(room)
 
-        room = room3_setup()
+        room = startcave_setup()
         self.rooms.append(room)
 
-        room = room4_setup()
+        room = outside2_setup()
+        self.rooms.append(room)
+
+        room = outside3_setup()
         self.rooms.append(room)
 
         # Our starting room number
@@ -306,6 +336,8 @@ class MyGame(arcade.Window):
 
 
     def on_draw(self):
+        health_x = 20
+        health_y = screen_height - 50
         """
         Render the screen.
         """
@@ -328,6 +360,10 @@ class MyGame(arcade.Window):
 
         self.player_list.draw()
         self.explosions_list.draw()
+
+        for i in range(health):
+            arcade.draw_xywh_rectangle_filled(health_x, health_y, 20, 20, arcade.color.BLUE)
+            health_x += 50
 
 
     def on_key_press(self, key, modifiers):
@@ -387,6 +423,11 @@ class MyGame(arcade.Window):
             self.physics_engine = arcade.PhysicsEngineSimple(self.player_sprite,
                                                              self.rooms[self.current_room].wall_list)
             self.player_sprite.center_x = screen_width
+        elif self.player_sprite.center_x in range(670,740) and self.player_sprite.center_y > screen_height and self.current_room == 0:
+            self.current_room = 4
+            self.physics_engine = arcade.PhysicsEngineSimple(self.player_sprite,
+                                                             self.rooms[self.current_room].wall_list)
+            self.player_sprite.center_y = 0
         elif self.player_sprite.center_y > screen_height and self.current_room == 0:
             self.current_room = 2
             self.physics_engine = arcade.PhysicsEngineSimple(self.player_sprite,
@@ -407,10 +448,29 @@ class MyGame(arcade.Window):
             self.physics_engine = arcade.PhysicsEngineSimple(self.player_sprite,
                                                              self.rooms[self.current_room].wall_list)
             self.player_sprite.center_y = screen_height
+        elif self.player_sprite.center_y < 0 and self.current_room == 4:
+            self.current_room = 0
+            self.physics_engine = arcade.PhysicsEngineSimple(self.player_sprite,
+                                                             self.rooms[self.current_room].wall_list)
+            self.player_sprite.center_y = screen_height
+        elif self.player_sprite.center_x < 0 and self.current_room == 3:
+            self.current_room = 4
+            self.physics_engine = arcade.PhysicsEngineSimple(self.player_sprite,
+                                                             self.rooms[self.current_room].wall_list)
+            self.player_sprite.center_x = screen_width
+        elif self.player_sprite.center_x > screen_width and self.current_room == 4:
+            self.current_room = 3
+            self.physics_engine = arcade.PhysicsEngineSimple(self.player_sprite,
+                                                             self.rooms[self.current_room].wall_list)
+            self.player_sprite.center_x = 0
+
         self.frame_count += 1
 
+
+
+
         for enemy in self.enemy_list:
-            if self.current_room != 0 and self.current_room % 2 == 1:
+            if self.current_room != 0 and self.current_room == 1:
                 # Get the destination location for the bullet
                 dest_x = self.player_sprite.center_x
                 dest_y = self.player_sprite.center_y
@@ -443,9 +503,10 @@ class MyGame(arcade.Window):
             # Get rid of the bullet when it flies off-screen
             for bullet in self.bullet_list:
                 hit_list = arcade.check_for_collision_with_list(self.player_sprite, self.bullet_list)
+                hit_list2 = arcade.check_for_collision_with_list(bullet, self.rooms[self.current_room].wall_list)
                 if bullet.top < 0:
                     bullet.kill()
-                elif len(arcade.check_for_collision_with_list(bullet, self.rooms[self.current_room].wall_list)):
+                elif len(hit_list2) > 0:
                     bullet.kill()
                 elif len(hit_list) > 0:
                     health -= 1
@@ -466,12 +527,17 @@ class MyGame(arcade.Window):
             self.player_sprite.kill()
             print("You died")
 
+        print(self.player_sprite.center_x)
+
+
+
 
 def main():
     """ Main method """
     window = MyGame(screen_width, screen_height, screen_title)
     window.setup()
     arcade.run()
+
 
 
 if __name__ == "__main__":
